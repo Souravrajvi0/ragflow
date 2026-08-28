@@ -49,7 +49,16 @@ The [postgres_migration.py](https://github.com/infiniflow/ragflow/blob/main/tool
 
 `tools/scripts/run_migrations.sh` selects this script automatically when `DB_TYPE` is `postgres` or `gaussdb`. That pre-startup path is where column-type conversion and data stages run (`model_type_merge` and `tenant_model_id_migration`).
 
-`migrate_db()` is only a fallback if the script did not run: it may retype leftover integer `tenant_*_id` columns, then invokes the same stages. It does **not** ALTER `tenant_model.model_type` to integer first — `tenant_model_seeding` and `model_type_merge` skip when that column is already an integer, which would leave unmerged duplicate rows.
+`migrate_db()` is a fallback when the pre-startup script did not run or did not finish:
+
+| Database | `tenant_*_id` fallback in `migrate_db()` | `model_type` merge fallback in `migrate_db()` |
+|----------|------------------------------------------|-----------------------------------------------|
+| PostgreSQL / GaussDB | Yes (column retype) | Yes (`migrate_postgres_family_model_provider_tables()`, skipped when the version marker is already `v0.27.0`) |
+| MySQL / OceanBase | Yes (column retype) | **No** — run `mysql_migration.py` / `run_migrations.sh` manually |
+
+Neither path ALTERs `tenant_model.model_type` to integer first — `tenant_model_seeding` and `model_type_merge` skip when that column is already an integer, which would leave unmerged duplicate rows.
+
+**GaussDB rollout:** Existing GaussDB installations that previously skipped these stages will run `model_type_merge` and `tenant_model_id_migration` the first time `run_migrations.sh` or the `migrate_db()` fallback executes. That is data-affecting (row merge, table swap, `tenant_*_id` backfill); take a backup before upgrading production GaussDB metadata databases.
 
 For GaussDB, connection parameters come from `GAUSSDB_METADATA_*` environment variables.
 
