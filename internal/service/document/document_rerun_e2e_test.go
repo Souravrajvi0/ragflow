@@ -107,4 +107,15 @@ func TestRerunDocument_E2E_EnqueuesThroughRealMessageQueue(t *testing.T) {
 	if task.DocumentID != "doc-1" || task.DatasetID != "kb-1" || task.Status != common.SCHEDULED {
 		t.Fatalf("ingestion task = %+v", task)
 	}
+	rerun, ok := task.RerunInfo()
+	if !ok {
+		t.Fatal("ingestion task missing rerun schema")
+	}
+	if rerun.LogID != "log-1" || rerun.ComponentID != "c1" {
+		t.Fatalf("rerun info = %+v", rerun)
+	}
+	path, _ = rerun.DSL["path"].([]interface{})
+	if len(path) != 1 || path[0] != "c1" {
+		t.Fatalf("task rerun dsl path = %v, want [c1]", rerun.DSL["path"])
+	}
 }
