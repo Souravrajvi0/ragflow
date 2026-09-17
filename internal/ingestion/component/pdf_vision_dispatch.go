@@ -500,7 +500,7 @@ func dispatchMinerUPDF(
 	backend := modelModule.ResolveMinerUBackend(getStringOr(setup, "mineru_backend", ""), apiKeyRaw)
 	serverURL := modelModule.ResolveMinerUServerURL(getStringOr(setup, "mineru_server_url", ""), apiKeyRaw)
 	if err := modelModule.ValidateMinerUConfig(backend, serverURL); err != nil {
-		return parserDispatchResult{}, err
+		return parser.ParseResult{}, err
 	}
 
 	zipBytes, err := mineruStreamParse(apiURL, apiKeyRaw, binary, parseMethod, mineruLang, backend, serverURL)
