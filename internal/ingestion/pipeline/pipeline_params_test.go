@@ -1296,3 +1296,71 @@ func TestCleanComponentParams_ManualChunkerDropsIncludeHeadingContent(t *testing
 		t.Fatal("expected at least one builtin template with a TitleChunker component")
 	}
 }
+
+func manualChunkerLegacyDSL(t *testing.T) []byte {
+	t.Helper()
+	dsl := map[string]any{
+		"components": map[string]any{
+			"ManualChunker:Legacy": map[string]any{
+				"obj": map[string]any{
+					"component_name": "ManualChunker",
+					"params": map[string]any{
+						"outputs":                 map[string]any{},
+						"method":                  "hierarchy",
+						"include_heading_content": true,
+						"hierarchy":               float64(0),
+						"levels":                  []any{[]any{"^# "}},
+					},
+				},
+			},
+		},
+	}
+	raw, err := json.Marshal(dsl)
+	if err != nil {
+		t.Fatalf("marshal dsl fixture: %v", err)
+	}
+	return raw
+}
+
+// TestComponentParamsDefaults_ManualChunkerLegacyDSL strips include_heading_content
+// from baked DSL defaults and normalizes method to group (#20139).
+func TestComponentParamsDefaults_ManualChunkerLegacyDSL(t *testing.T) {
+	dslJSON := manualChunkerLegacyDSL(t)
+	defaults, err := ComponentParamsDefaults(dslJSON)
+	if err != nil {
+		t.Fatalf("ComponentParamsDefaults: %v", err)
+	}
+	params := defaults["ManualChunker:Legacy"]
+	if params == nil {
+		t.Fatal("expected ManualChunker defaults")
+	}
+	if _, ok := params["include_heading_content"]; ok {
+		t.Errorf("legacy include_heading_content must be stripped, got %#v", params)
+	}
+	if params["method"] != "group" {
+		t.Errorf("method must normalize to group, got %#v", params["method"])
+	}
+}
+
+// TestCleanComponentParams_ManualChunkerNormalizesMethod rejects persisted
+// non-group method overrides at the configuration boundary (#20139).
+func TestCleanComponentParams_ManualChunkerNormalizesMethod(t *testing.T) {
+	dslJSON := manualChunkerLegacyDSL(t)
+	raw := map[string]any{
+		"ManualChunker:Legacy": map[string]any{
+			"method":                  "hierarchy",
+			"include_heading_content": true,
+		},
+	}
+	result := CleanComponentParams(dslJSON, raw)
+	params, ok := result["ManualChunker:Legacy"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected ManualChunker params, got %#v", result)
+	}
+	if _, ok := params["include_heading_content"]; ok {
+		t.Errorf("include_heading_content should be dropped, got %#v", params)
+	}
+	if params["method"] != "group" {
+		t.Errorf("method must normalize to group, got %#v", params["method"])
+	}
+}

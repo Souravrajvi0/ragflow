@@ -66,6 +66,21 @@ var manualChunkerParamKeys = func() map[string]struct{} {
 	return keys
 }()
 
+// sanitizeManualChunkerParams strips keys ManualChunker cannot honor and
+// normalizes method to the pinned runtime value.
+func sanitizeManualChunkerParams(params map[string]any) map[string]any {
+	if params == nil {
+		return nil
+	}
+	out := make(map[string]any, len(params))
+	for k, v := range params {
+		out[k] = v
+	}
+	delete(out, "include_heading_content")
+	out["method"] = "group"
+	return out
+}
+
 var componentParamSchemaKeys = map[string]map[string]struct{}{
 	"titlechunker":  extractJSONTags(schema.TitleChunkerParam{}),
 	"manualchunker": manualChunkerParamKeys,
@@ -200,6 +215,9 @@ func CleanComponentParams(dslJSON []byte, rawConfig map[string]interface{}) map[
 		for k := range componentParamSchemaKeys[strings.ToLower(s.ComponentName)] {
 			keys[k] = struct{}{}
 		}
+		if s.ComponentName == "ManualChunker" {
+			delete(keys, "include_heading_content")
+		}
 		validCPNs[s.CpnID] = keys
 		componentNames[s.CpnID] = s.ComponentName
 	}
@@ -250,6 +268,9 @@ func CleanComponentParams(dslJSON []byte, rawConfig map[string]interface{}) map[
 			}
 			common.Warn("CleanComponentParams: dropping unknown param",
 				zap.String("cpnID", key), zap.String("param", pk))
+		}
+		if componentNames[key] == "ManualChunker" {
+			cleaned = sanitizeManualChunkerParams(cleaned)
 		}
 		if len(cleaned) > 0 {
 			result[key] = cleaned

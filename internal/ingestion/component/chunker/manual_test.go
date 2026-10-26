@@ -460,7 +460,7 @@ func TestManualChunker_RespectsChunkTokenCap(t *testing.T) {
 func TestManualChunker_ChunkTokenCapZeroNoop(t *testing.T) {
 	charTokenizer()
 	defer restoreTokenizer()
-	body := strings.Join(joinSentences(12), "")
+	body := strings.Repeat("ab", 300) // 600 stub tokens > default cap 512
 	mc := mustManual(t, map[string]any{"levels": [][]string{{`^# `}}, "chunk_token_cap": 0})
 	inputs := map[string]any{"output_format": "text", "text": body, "name": "doc"}
 	out, err := mc.Invoke(t.Context(), nil, inputs)
